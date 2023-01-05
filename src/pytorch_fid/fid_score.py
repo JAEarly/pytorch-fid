@@ -66,6 +66,8 @@ parser.add_argument('--dims', type=int, default=2048,
 parser.add_argument('--save-stats', action='store_true',
                     help=('Generate an npz archive from a directory of samples. '
                           'The first path is used as input and the second as output.'))
+parser.add_argument('--seed', type=int, default=5,
+                    help='Set a fixed seed for random sampling if the number of images found is different.')
 parser.add_argument('path', type=str, nargs=2,
                     help=('Paths to the generated images or '
                           'to .npz statistic files'))
@@ -231,8 +233,8 @@ def calculate_activation_statistics(files, model, batch_size=50, dims=2048,
     return mu, sigma
 
 
-def compute_statistics_of_path(path, model, batch_size, dims, device, n_files,
-                               num_workers=1, seed=5):
+def compute_statistics_of_path(path, model, batch_size, dims, device, n_files, seed,
+                               num_workers=1):
     if path.endswith('.npz'):
         with np.load(path) as f:
             m, s = f['mu'][:], f['sigma'][:]
@@ -240,8 +242,9 @@ def compute_statistics_of_path(path, model, batch_size, dims, device, n_files,
         path = pathlib.Path(path)
         files = sorted([file for ext in IMAGE_EXTENSIONS
                        for file in path.glob('*.{}'.format(ext))])
-        print('WARNING: Reducing number of files for path {:s} from {:d} to {:d}')
         if len(files) > n_files:
+            print('WARNING: Reducing number of files for path {:s} from {:d} to {:d}. seed = {:d}'
+                  .format(path, len(files), n_files, seed))
             np.random.seed(seed)
             files = np.random.choice(files, n_files, replace=False)
         print(len(files))
@@ -252,7 +255,7 @@ def compute_statistics_of_path(path, model, batch_size, dims, device, n_files,
     return m, s
 
 
-def calculate_fid_given_paths(paths, batch_size, device, dims, n_files, num_workers=1, seed=5):
+def calculate_fid_given_paths(paths, batch_size, device, dims, n_files, seed, num_workers=1):
     """Calculates the FID of two paths"""
     for p in paths:
         if not os.path.exists(p):
@@ -306,9 +309,10 @@ def check_n_files_equal(paths):
     n_files_0 = _n_files(path_0)
     n_files_1 = _n_files(path_1)
     if n_files_0 != n_files_1:
-        print('WARNING: Different number of files found in paths: {:d} and {:d}.'
-              'Will sample from larger set of images to ensure same number of files.'
-              'SOMETHING ABOUT FIXING THE RANDOM GENERATION'.format(n_files_0, n_files_1))
+        print('WARNING: Different number of files found in paths: {:d} and {:d}. '
+              'Will sample from larger set of images to ensure same number of files. '
+              'Using a fixed seed to ensure consistent generation. '
+              'Set a custom seed int using --seed <seed>'.format(n_files_0, n_files_1))
         return min(n_files_0, n_files_1)
     print('Matching number of files found: {:d} and {:d}'.format(n_files_0, n_files_1))
     return None
@@ -345,6 +349,7 @@ def main():
                                           device,
                                           args.dims,
                                           n_files,
+                                          args.seed,
                                           num_workers)
     print('FID: ', fid_value)
 
