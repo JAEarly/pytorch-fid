@@ -247,8 +247,6 @@ def compute_statistics_of_path(path, model, batch_size, dims, device, n_files, s
                   .format(str(path), len(files), n_files, seed))
             np.random.seed(seed)
             files = np.random.choice(files, n_files, replace=False)
-        print(len(files))
-        print(files[:5])
         m, s = calculate_activation_statistics(files, model, batch_size,
                                                dims, device, num_workers)
 
@@ -311,7 +309,7 @@ def check_n_files_equal(paths):
     if n_files_0 != n_files_1:
         print('WARNING: Different number of files found in paths: {:d} and {:d}. '
               'Will sample from larger set of images to ensure same number of files. '
-              'Using a fixed seed to ensure consistent generation. '
+              'Using a fixed seed to ensure consistent sampling (and scoring). '
               'Set a custom seed int using --seed <seed>'.format(n_files_0, n_files_1))
         return min(n_files_0, n_files_1)
     print('Matching number of files found: {:d} and {:d}'.format(n_files_0, n_files_1))
