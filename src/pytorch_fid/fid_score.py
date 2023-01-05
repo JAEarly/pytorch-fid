@@ -285,6 +285,25 @@ def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
     np.savez_compressed(paths[1], mu=m1, sigma=s1)
 
 
+def check_n_files_equal(paths):
+
+    def _n_files(path):
+        path = pathlib.Path(path)
+        files = sorted([file for ext in IMAGE_EXTENSIONS
+                        for file in path.glob('*.{}'.format(ext))])
+        return len(files)
+
+    path_0, path_1 = paths
+    if path_0.endswith('.npz') or path_1.endswith('.npz'):
+        print('Skipping checking num files equal - at least one path is .npz')
+    else:
+        n_files_0 = _n_files(path_0)
+        n_files_1 = _n_files(path_1)
+        if n_files_0 != n_files_1:
+            raise ValueError('Different number of files found in paths: {:d} and {:d}'.format(n_files_0, n_files_1))
+        print('Matching number of files found: '.format(n_files_0, n_files_1))
+
+
 def main():
     args = parser.parse_args()
 
@@ -310,6 +329,7 @@ def main():
         save_fid_stats(args.path, args.batch_size, device, args.dims, num_workers)
         return
 
+    check_n_files_equal(args.path)
     fid_value = calculate_fid_given_paths(args.path,
                                           args.batch_size,
                                           device,
