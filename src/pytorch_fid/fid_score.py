@@ -244,7 +244,7 @@ def compute_statistics_of_path(path, model, batch_size, dims, device, n_files, s
                        for file in path.glob('*.{}'.format(ext))])
         if len(files) > n_files:
             print('WARNING: Reducing number of files for path {:s} from {:d} to {:d}. seed = {:d}'
-                  .format(path, len(files), n_files, seed))
+                  .format(str(path), len(files), n_files, seed))
             np.random.seed(seed)
             files = np.random.choice(files, n_files, replace=False)
         print(len(files))
