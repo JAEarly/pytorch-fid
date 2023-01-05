@@ -301,7 +301,7 @@ def check_n_files_equal(paths):
         n_files_1 = _n_files(path_1)
         if n_files_0 != n_files_1:
             raise ValueError('Different number of files found in paths: {:d} and {:d}'.format(n_files_0, n_files_1))
-        print('Matching number of files found: '.format(n_files_0, n_files_1))
+        print('Matching number of files found: {:d} and {:d}'.format(n_files_0, n_files_1))
 
 
 def main():
