@@ -231,8 +231,8 @@ def calculate_activation_statistics(files, model, batch_size=50, dims=2048,
     return mu, sigma
 
 
-def compute_statistics_of_path(path, model, batch_size, dims, device,
-                               num_workers=1):
+def compute_statistics_of_path(path, model, batch_size, dims, device, n_files,
+                               num_workers=1, seed=5):
     if path.endswith('.npz'):
         with np.load(path) as f:
             m, s = f['mu'][:], f['sigma'][:]
@@ -240,13 +240,19 @@ def compute_statistics_of_path(path, model, batch_size, dims, device,
         path = pathlib.Path(path)
         files = sorted([file for ext in IMAGE_EXTENSIONS
                        for file in path.glob('*.{}'.format(ext))])
+        print('WARNING: Reducing number of files for path {:s} from {:d} to {:d}')
+        if len(files) > n_files:
+            np.random.seed(seed)
+            files = np.random.choice(files, n_files, replace=False)
+        print(len(files))
+        print(files[:5])
         m, s = calculate_activation_statistics(files, model, batch_size,
                                                dims, device, num_workers)
 
     return m, s
 
 
-def calculate_fid_given_paths(paths, batch_size, device, dims, num_workers=1):
+def calculate_fid_given_paths(paths, batch_size, device, dims, n_files, num_workers=1, seed=5):
     """Calculates the FID of two paths"""
     for p in paths:
         if not os.path.exists(p):
@@ -257,15 +263,15 @@ def calculate_fid_given_paths(paths, batch_size, device, dims, num_workers=1):
     model = InceptionV3([block_idx]).to(device)
 
     m1, s1 = compute_statistics_of_path(paths[0], model, batch_size,
-                                        dims, device, num_workers)
+                                        dims, device, n_files, seed, num_workers)
     m2, s2 = compute_statistics_of_path(paths[1], model, batch_size,
-                                        dims, device, num_workers)
+                                        dims, device, n_files, seed, num_workers)
     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
 
     return fid_value
 
 
-def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
+def save_fid_stats(paths, batch_size, device, dims, num_workers=1, seed=5):
     """Calculates the FID of two paths"""
     if not os.path.exists(paths[0]):
         raise RuntimeError('Invalid path: %s' % paths[0])
@@ -280,7 +286,7 @@ def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
     print(f"Saving statistics for {paths[0]}")
 
     m1, s1 = compute_statistics_of_path(paths[0], model, batch_size,
-                                        dims, device, num_workers)
+                                        dims, device, num_workers, seed)
 
     np.savez_compressed(paths[1], mu=m1, sigma=s1)
 
@@ -296,12 +302,16 @@ def check_n_files_equal(paths):
     path_0, path_1 = paths
     if path_0.endswith('.npz') or path_1.endswith('.npz'):
         print('Skipping checking num files equal - at least one path is .npz')
-    else:
-        n_files_0 = _n_files(path_0)
-        n_files_1 = _n_files(path_1)
-        if n_files_0 != n_files_1:
-            raise ValueError('Different number of files found in paths: {:d} and {:d}'.format(n_files_0, n_files_1))
-        print('Matching number of files found: {:d} and {:d}'.format(n_files_0, n_files_1))
+        return None
+    n_files_0 = _n_files(path_0)
+    n_files_1 = _n_files(path_1)
+    if n_files_0 != n_files_1:
+        print('WARNING: Different number of files found in paths: {:d} and {:d}.'
+              'Will sample from larger set of images to ensure same number of files.'
+              'SOMETHING ABOUT FIXING THE RANDOM GENERATION'.format(n_files_0, n_files_1))
+        return min(n_files_0, n_files_1)
+    print('Matching number of files found: {:d} and {:d}'.format(n_files_0, n_files_1))
+    return None
 
 
 def main():
@@ -329,11 +339,12 @@ def main():
         save_fid_stats(args.path, args.batch_size, device, args.dims, num_workers)
         return
 
-    check_n_files_equal(args.path)
+    n_files = check_n_files_equal(args.path)
     fid_value = calculate_fid_given_paths(args.path,
                                           args.batch_size,
                                           device,
                                           args.dims,
+                                          n_files,
                                           num_workers)
     print('FID: ', fid_value)
 
