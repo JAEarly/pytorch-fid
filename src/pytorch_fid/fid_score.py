@@ -242,7 +242,7 @@ def compute_statistics_of_path(path, model, batch_size, dims, device, n_files, s
         path = pathlib.Path(path)
         files = sorted([file for ext in IMAGE_EXTENSIONS
                        for file in path.glob('*.{}'.format(ext))])
-        if len(files) > n_files:
+        if n_files and len(files) > n_files:
             print('WARNING: Reducing number of files for path {:s} from {:d} to {:d}. seed = {:d}'
                   .format(str(path), len(files), n_files, seed))
             np.random.seed(seed)
